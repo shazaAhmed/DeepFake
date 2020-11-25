@@ -38,24 +38,45 @@ from torch.nn import DataParallel
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch.distributed as dist
-
+# CUDNN is a GPU-accelerated library of primitives for deep neural networks.
+# it provides highly tuned implementations for standard routines such as forward and backward convolution, pooling, normalization, and activation layers.
+# when setting torch.backends.cudnn.benchmark to true it allows us to enable the inbuilt cudnn auto-tuner
+#to find the best algorithm to use for our hardware.
 torch.backends.cudnn.benchmark = True
 
 
 def create_train_transforms(size=300):
+    # defining an augmentation pipeline
+    # this will return a transform function that will perform image augmentation.
     return Compose([
+        # Decrease Jpeg, WebP compression of an image
+        # with the quality_lower parameter as the lower bound on the image quality
+        # and the quality_upper as the upper bound on the image quality
         ImageCompression(quality_lower=60, quality_upper=100, p=0.5),
+        # used to apply Gaussian noise to the input picture
+        # with p as the probability of applying the transform
         GaussNoise(p=0.1),
+        # used to blur the input image using a Gaussian filter with a random kernel size
+        # with the blur_limit as the maximum Gaussian kernel size for blurring the input image
         GaussianBlur(blur_limit=3, p=0.05),
+        # flips the input image horizontally around the y-axis
         HorizontalFlip(),
+        # Select one of transforms to apply
         OneOf([
             IsotropicResize(max_side=size, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_CUBIC),
             IsotropicResize(max_side=size, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_LINEAR),
             IsotropicResize(max_side=size, interpolation_down=cv2.INTER_LINEAR, interpolation_up=cv2.INTER_LINEAR),
         ], p=1),
+        # Pad side of the image / max if side is less than desired number
         PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
+        # Select one of the following transforms to apply:
+        # RandomBrightnessContrast: used to randomly change brightness and contrast of the input image
+        # FancyPCA: Augment RGB image using FancyPCA
+        # HueSaturationValue: Randomly change hue, saturation and value of the input image
         OneOf([RandomBrightnessContrast(), FancyPCA(), HueSaturationValue()], p=0.7),
+        # this converts the input RGB image to grayscale. If the mean pixel value for the resulting image is greater than 127, invert the resulting grayscale image.
         ToGray(p=0.2),
+        # this randomly apply affine transforms: translate, scale and rotate the input.
         ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=10, border_mode=cv2.BORDER_CONSTANT, p=0.5),
     ]
     )
@@ -100,6 +121,7 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     if args.distributed:
         torch.cuda.set_device(args.local_rank)
+        # Initializes the default distributed process group
         torch.distributed.init_process_group(backend='nccl', init_method='env://')
     else:
         os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
