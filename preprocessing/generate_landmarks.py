@@ -30,17 +30,23 @@ def save_landmarks(ori_id, root_dir):
     ori_dir = os.path.join(root_dir, "crops", ori_id)
     landmark_dir = os.path.join(root_dir, "landmarks", ori_id)
     os.makedirs(landmark_dir, exist_ok=True)
+    # the function iterates on 320 frames
     for frame in range(320):
         if frame % 10 != 0:
             continue
+        # it also iterates on 2 actors
         for actor in range(2):
             image_id = "{}_{}.png".format(frame, actor)
             landmarks_id = "{}_{}".format(frame, actor)
             ori_path = os.path.join(ori_dir, image_id)
             landmark_path = os.path.join(landmark_dir, landmarks_id)
-
+            # it checks if an image that has the name frame_actor.png
+            # exist in the original images directory
             if os.path.exists(ori_path):
                 try:
+                    # if it does exist, the function uses a MTCCNN model to
+                    # detect the facial landmarks and the bounding boxes of every face
+                    # in that picture and saves them if there is any.
                     image_ori = cv2.imread(ori_path, cv2.IMREAD_COLOR)[...,::-1]
                     frame_img = Image.fromarray(image_ori)
                     batch_boxes, conf, landmarks = detector.detect(frame_img, landmarks=True)

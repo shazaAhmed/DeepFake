@@ -54,7 +54,7 @@ def save_diffs(pair, root_dir):
                 img1 = cv2.imread(ori_path, cv2.IMREAD_COLOR)
                 img2 = cv2.imread(fake_path, cv2.IMREAD_COLOR)
                 try:
-                    #if they do exist, the functions computes the mean structural similarity
+                    #if they do exist, the function computes the mean structural similarity
                     #index between two images and it returns the index and the full SSIM image
                     d, a = compare_ssim(img1, img2, multichannel=True, full=True)
                     a = 1 - a
