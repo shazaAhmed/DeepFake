@@ -13,11 +13,20 @@ from preprocessing.utils import get_original_video_paths
 
 
 def parse_args():
+     """
+    This function, which specifies 2 command-line options,
+    """
+    #ArgumentParser object will hold all the information necessary to parse the command line into Python data types
     parser = argparse.ArgumentParser(
         description="Process a original videos with face detector")
+    #add_argument tells ArgumentParser how to take the strings on the command line and turn them into objects
+    # 1 command-line options
     parser.add_argument("--root-dir", help="root directory")
+     # 2 command-line options : if --detector-type was specified at the command line, or the FacenetDetector function if it was not
     parser.add_argument("--detector-type", help="type of the detector", default="FacenetDetector",
                         choices=["FacenetDetector"])
+    #parse_args() method actually returns some data from the options specified so this will inspect the command line, 
+    #convert each argument to the appropriate type and then invoke the appropriate action
     args = parser.parse_args()
     return args
 
