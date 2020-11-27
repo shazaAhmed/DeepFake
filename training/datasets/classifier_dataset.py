@@ -92,6 +92,9 @@ def dist(p1, p2):
 
 
 def remove_eyes(image, landmarks):
+    """
+    this function removes the eyes from the image
+    """
     image = image.copy()
     (x1, y1), (x2, y2) = landmarks[:2]
     mask = np.zeros_like(image[..., 0])
@@ -106,6 +109,9 @@ def remove_eyes(image, landmarks):
 
 
 def remove_nose(image, landmarks):
+    """
+    this function removes the nose from the image
+    """
     image = image.copy()
     (x1, y1), (x2, y2) = landmarks[:2]
     x3, y3 = landmarks[2]
@@ -123,6 +129,9 @@ def remove_nose(image, landmarks):
 
 
 def remove_mouth(image, landmarks):
+    """
+    this function removes the mouth from the image
+    """
     image = image.copy()
     (x1, y1), (x2, y2) = landmarks[-2:]
     mask = np.zeros_like(image[..., 0])
@@ -137,7 +146,9 @@ def remove_mouth(image, landmarks):
 
 
 def remove_landmark(image, landmarks):
-    # this function removes the landmarks from the image: including eyes, mouth and nose
+    """
+    this function removes the landmarks from the image: including eyes, mouth and nose
+    """
     if random.random() > 0.5:
         image = remove_eyes(image, landmarks)
     elif random.random() > 0.5:
