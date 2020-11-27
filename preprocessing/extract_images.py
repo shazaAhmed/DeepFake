@@ -39,10 +39,10 @@ def extract_video(video, root_dir):
 
 
 if __name__ == '__main__':
-    
-    
-    
-    
+    """
+     This script extract frames(images) from video and saves them in format jpegs with a specific quality
+     from all the videos
+    """
     #ArgumentParser object will hold all the information necessary to parse the command line into Python data types
     parser = argparse.ArgumentParser(
         description="Extracts jpegs from video")

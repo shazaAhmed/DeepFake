@@ -19,14 +19,13 @@ from torch.utils.data import Dataset
 
 
 class VideoFaceDetector(ABC):
-    
-    ######################### Class declaring abstract methods 
+    #Class declaring abstract methods 
 
     def __init__(self, **kwargs) -> None:
         super().__init__()
 
     @property
-    #@abstractmethod - A decorator indicating abstract methods
+    @abstractmethod - A decorator indicating abstract methods
     @abstractmethod
     def _batch_size(self) -> int:
         pass
@@ -38,7 +37,6 @@ class VideoFaceDetector(ABC):
 
 
 class FacenetDetector(VideoFaceDetector):
-    
     #To create an MTCNN detector that runs on the GPU, the model is instantiated with device='cuda:0'
     def __init__(self, device="cuda:0") -> None:
         #call the constructeur of VideoFaceDetector class
