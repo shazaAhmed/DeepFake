@@ -2,43 +2,72 @@ import random
 
 import cv2
 import numpy as np
+#Library for image augmentation
+#Image augmentation is used in deep learning and computer vision tasks to increase the quality of trained models
+#DualTransform - Transform for segmentation task
+#ImageOnlyTransform - Transform applied to image only
 from albumentations import DualTransform, ImageOnlyTransform
 from albumentations.augmentations.functional import crop
 
 
+#INTER_AREA – resampling using pixel area relation
+#INTER_CUBIC - a bicubic interpolation over 4×4 pixel neighborhood
 def isotropically_resize_image(img, size, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_CUBIC):
+    """
+    This function gets an image and resized it by increasing the quality of the pixels accordingly
+    """
+    # initialize the height and width of the image based on its shape
     h, w = img.shape[:2]
     if max(w, h) == size:
         return img
+    # check if width is greater than height then scale up the height
     if w > h:
         scale = size / w
         h = h * scale
         w = size
+    # check if height is greater than width then scale up the width
     else:
         scale = size / h
         w = w * scale
         h = size
+    # to increase the quantity of pixels, so that when we zoom an image, we will see more detail
     interpolation = interpolation_up if scale > 1 else interpolation_down
+    # resize the image
     resized = cv2.resize(img, (int(w), int(h)), interpolation=interpolation)
     return resized
 
 
+
+#Isotropic scaling is a linear transformation that enlarges (increases) or shrinks (diminishes) objects by a scale factor that is the same in all directions
 class IsotropicResize(DualTransform):
+    
+    
+    
     def __init__(self, max_side, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_CUBIC,
                  always_apply=False, p=1):
         super(IsotropicResize, self).__init__(always_apply, p)
         self.max_side = max_side
         self.interpolation_down = interpolation_down
         self.interpolation_up = interpolation_up
-
+    
+    #**params parameter represents all the keyword arguments passed to the function as a dictionary
     def apply(self, img, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_CUBIC, **params):
+        """
+        This function return an image which is resized and increase the quality of the pixels accordingly
+        """
         return isotropically_resize_image(img, size=self.max_side, interpolation_down=interpolation_down,
                                           interpolation_up=interpolation_up)
 
     def apply_to_mask(self, img, **params):
+        """
+        This function 
+        """
         return self.apply(img, interpolation_down=cv2.INTER_NEAREST, interpolation_up=cv2.INTER_NEAREST, **params)
 
     def get_transform_init_args_names(self):
+        """
+        This function return the arguments defined in the constructeur
+        """
         return ("max_side", "interpolation_down", "interpolation_up")
 
 
