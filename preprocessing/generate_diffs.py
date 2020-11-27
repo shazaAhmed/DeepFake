@@ -24,24 +24,38 @@ cache = {}
 
 
 def save_diffs(pair, root_dir):
+    """
+    This function takes as a parameter a tuple of an original video id and the id of the
+    fake version of it, and it computes for a certain number of cropped images (that are in
+    the original and the fake video) the mean structural similarity index between them
+    it then creates an image with the full SSIM image and saves it in a 
+    the diff directory
+    """
     ori_id, fake_id = pair
     ori_dir = os.path.join(root_dir, "crops", ori_id)
     fake_dir = os.path.join(root_dir, "crops", fake_id)
     diff_dir = os.path.join(root_dir, "diffs", fake_id)
     os.makedirs(diff_dir, exist_ok=True)
+    # the function iterates on 320 frames
     for frame in range(320):
         if frame % 10 != 0:
             continue
+        # it also iterates on 2 actors
         for actor in range(2):
             image_id = "{}_{}.png".format(frame, actor)
             diff_image_id = "{}_{}_diff.png".format(frame, actor)
             ori_path = os.path.join(ori_dir, image_id)
             fake_path = os.path.join(fake_dir, image_id)
             diff_path = os.path.join(diff_dir, diff_image_id)
+            # it checks if an image that has the name frame_actor.png
+            # exist in the fake images directory and the original
+            # images directory
             if os.path.exists(ori_path) and os.path.exists(fake_path):
                 img1 = cv2.imread(ori_path, cv2.IMREAD_COLOR)
                 img2 = cv2.imread(fake_path, cv2.IMREAD_COLOR)
                 try:
+                    #if they do exist, the function computes the mean structural similarity
+                    #index between two images and it returns the index and the full SSIM image
                     d, a = compare_ssim(img1, img2, multichannel=True, full=True)
                     a = 1 - a
                     diff = (a * 255).astype(np.uint8)
@@ -49,6 +63,7 @@ def save_diffs(pair, root_dir):
                     cv2.imwrite(diff_path, diff)
                 except:
                     pass
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
