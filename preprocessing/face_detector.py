@@ -20,7 +20,7 @@ from torch.utils.data import Dataset
 
 class VideoFaceDetector(ABC):
     
-    ######################### Class declaring abstract methods which are defined in FacenetDetector
+    ######################### Class declaring abstract methods 
 
     def __init__(self, **kwargs) -> None:
         super().__init__()
