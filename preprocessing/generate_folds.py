@@ -22,14 +22,22 @@ cv2.setNumThreads(0)
 
 
 def get_paths(vid, label, root_dir):
+    """
+    This function returns a list of lists containing the informations regarding : the path of the image, if it's a fake or original image and the name of the video 
+    """
     ori_vid, fake_vid = vid
     ori_dir = os.path.join(root_dir, "crops", ori_vid)
     fake_dir = os.path.join(root_dir, "crops", fake_vid)
     data = []
+    # the function iterates on 320 frames
     for frame in range(320):
         if frame % 10 != 0:
             continue
+        # it also iterates on 2 actors
         for actor in range(2):
+            # it checks if an image that has the name frame_actor.png
+            # has a label of 1 it defines the path in the fake images directory otherwise it defines the path in the original
+            # images directory
             image_id = "{}_{}.png".format(frame, actor)
             ori_img_path = os.path.join(ori_dir, image_id)
             fake_img_path = os.path.join(fake_dir, image_id)
@@ -57,11 +65,14 @@ def parse_args():
 
 def main():
     args = parse_args()
+    # it gets the orignal and fakes images
     ori_fakes = get_original_with_fakes(args.root_dir)
+    # splits the data into 50 parts
     sz = 50 // args.n_splits
     folds = []
     for fold in range(args.n_splits):
         folds.append(list(range(sz * fold, sz * fold + sz if fold < args.n_splits - 1 else 50)))
+    #list of lists of with differents range of numbers
     print(folds)
     video_fold = {}
     for d in os.listdir(args.root_dir):
