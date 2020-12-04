@@ -54,6 +54,9 @@ predictor = dlib.shape_predictor('libs/shape_predictor_68_face_landmarks.dat')
 
 
 def blackout_convex_hull(img):
+    """
+    this function removes half face horisontally or vertically nd it uses dlib face convex hulls to do that
+    """
     try:
         rect = detector(img)[0]
         sp = predictor(img, rect)
@@ -159,6 +162,9 @@ def remove_landmark(image, landmarks):
 
 
 def change_padding(image, part=5):
+    """
+    addS 30% of face crop size from each side 
+    """
     h, w = image.shape[:2]
     # original padding was done with 1/3 from each side, too much
     pad_h = int(((3 / 5) * h) / part)
@@ -297,6 +303,12 @@ class DeepFakeClassifierDataset(Dataset):
                     print("not found mask", diff_path)
                     pass
                 if self.mode == "train" and self.hardcore and not self.rotation:
+                    # this part of the function gets the image and uses random() to choose
+                    # one of the following generalization approaches randomly:
+                    # 1. randomly removes one of the landmarks that MTCNN detected on the face randomly:
+                    #  it blacks out landmarks (eyes, nose or mouth)
+                    # 2. removes/blacks out half face horisontally or vertically and it uses dlib face convex hulls to do that
+                    # 3. blacks out half the image
                     landmark_path = os.path.join(self.data_root, "landmarks", ori_video, img_file[:-4] + ".npy")
                     if os.path.exists(landmark_path) and random.random() < 0.7:
                         landmarks = np.load(landmark_path)
@@ -332,7 +344,6 @@ class DeepFakeClassifierDataset(Dataset):
                     elif random.random() < dropout:
                         blackout_random(image, mask, label)
 
-                #
                 # os.makedirs("../images", exist_ok=True)
                 # cv2.imwrite(os.path.join("../images", video+ "_" + str(1 if label > 0.5 else 0) + "_"+img_file), image[...,::-1])
 

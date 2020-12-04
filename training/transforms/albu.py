@@ -40,12 +40,12 @@ def isotropically_resize_image(img, size, interpolation_down=cv2.INTER_AREA, int
 
 #Isotropic scaling is a linear transformation that enlarges (increases) or shrinks (diminishes) objects by a scale factor that is the same in all directions
 class IsotropicResize(DualTransform):
+
     """
     Resize the image so that maximum side is equal to max_size
     interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
     """
-
     def __init__(self, max_side, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_CUBIC,
                  always_apply=False, p=1):
         super(IsotropicResize, self).__init__(always_apply, p)
@@ -63,6 +63,7 @@ class IsotropicResize(DualTransform):
 
     def apply_to_mask(self, img, **params):
         #INTER_NEAREST - a nearest-neighbor interpolation
+
         return self.apply(img, interpolation_down=cv2.INTER_NEAREST, interpolation_up=cv2.INTER_NEAREST, **params)
 
     def get_transform_init_args_names(self):

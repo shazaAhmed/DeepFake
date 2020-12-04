@@ -20,6 +20,8 @@ if __name__ == '__main__':
     models = []
     model_paths = [os.path.join(args.weights_dir, model) for model in args.models]
     for path in model_paths:
+        # Because we are using the model for inference, it is only necessary to save/load the trained model’s learned parameters.
+        # this is why we save/load the state dict
         model = DeepFakeClassifier(encoder="tf_efficientnet_b7_ns").to("cuda")
         print("loading state dict {}".format(path))
         checkpoint = torch.load(path, map_location="cpu")
@@ -31,7 +33,9 @@ if __name__ == '__main__':
 
     frames_per_video = 32
     video_reader = VideoReader()
+    # this reads the 32 frames from the test videos
     video_read_fn = lambda x: video_reader.read_frames(x, num_frames=frames_per_video)
+    # and extracts the faces from these videos
     face_extractor = FaceExtractor(video_read_fn)
     input_size = 380
     strategy = confident_strategy
@@ -39,6 +43,7 @@ if __name__ == '__main__':
 
     test_videos = sorted([x for x in os.listdir(args.test_dir) if x[-4:] == ".mp4"])
     print("Predicting {} videos".format(len(test_videos)))
+    # this predicts the label for the test videos and saves the results in a csv
     predictions = predict_on_video_set(face_extractor=face_extractor, input_size=input_size, models=models,
                                        strategy=strategy, frames_per_video=frames_per_video, videos=test_videos,
                                        num_workers=6, test_dir=args.test_dir)
