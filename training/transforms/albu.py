@@ -40,9 +40,12 @@ def isotropically_resize_image(img, size, interpolation_down=cv2.INTER_AREA, int
 
 #Isotropic scaling is a linear transformation that enlarges (increases) or shrinks (diminishes) objects by a scale factor that is the same in all directions
 class IsotropicResize(DualTransform):
-    
-    
-    
+
+    """
+    Resize the image so that maximum side is equal to max_size
+    interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+    """
     def __init__(self, max_side, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_CUBIC,
                  always_apply=False, p=1):
         super(IsotropicResize, self).__init__(always_apply, p)
@@ -50,7 +53,7 @@ class IsotropicResize(DualTransform):
         self.interpolation_down = interpolation_down
         self.interpolation_up = interpolation_up
     
-    #**params parameter represents all the keyword arguments passed to the function as a dictionary
+    #**params - parameter represents all the keyword arguments passed to the function as a dictionary
     def apply(self, img, interpolation_down=cv2.INTER_AREA, interpolation_up=cv2.INTER_CUBIC, **params):
         """
         This function return an image which is resized and increase the quality of the pixels accordingly
@@ -59,9 +62,8 @@ class IsotropicResize(DualTransform):
                                           interpolation_up=interpolation_up)
 
     def apply_to_mask(self, img, **params):
-        """
-        This function 
-        """
+        #INTER_NEAREST - a nearest-neighbor interpolation
+
         return self.apply(img, interpolation_down=cv2.INTER_NEAREST, interpolation_up=cv2.INTER_NEAREST, **params)
 
     def get_transform_init_args_names(self):
@@ -72,6 +74,9 @@ class IsotropicResize(DualTransform):
 
 
 class Resize4xAndBack(ImageOnlyTransform):
+     """
+        It resizes the image by scaling it down and resizes back by applying a random interpolation between INTER_CUBIC, cv2.INTER_LINEAR, cv2.INTER_NEAREST
+     """
     def __init__(self, always_apply=False, p=0.5):
         super(Resize4xAndBack, self).__init__(always_apply, p)
 
@@ -85,7 +90,12 @@ class Resize4xAndBack(ImageOnlyTransform):
 
 
 class RandomSizedCropNonEmptyMaskIfExists(DualTransform):
-
+    
+    """
+        Crop a random part of the input and rescale it to some size if the input mask exists.
+        min_max_height ((int, int)): crop size limits
+        w2h_ratio (float): aspect ratio of crop
+    """
     def __init__(self, min_max_height, w2h_ratio=[0.7, 1.3], always_apply=False, p=0.5):
         super(RandomSizedCropNonEmptyMaskIfExists, self).__init__(always_apply, p)
 

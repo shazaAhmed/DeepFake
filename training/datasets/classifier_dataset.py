@@ -48,10 +48,15 @@ def prepare_bit_masks(mask):
 
 
 detector = dlib.get_frontal_face_detector()
+# this takes in an image region containing some object and outputs a set of point locations that define
+# the locations of important facial landmarks such as the corners of the mouth and eyes, tip of the nose, and so forth
 predictor = dlib.shape_predictor('libs/shape_predictor_68_face_landmarks.dat')
 
 
 def blackout_convex_hull(img):
+    """
+    this function removes half face horisontally or vertically nd it uses dlib face convex hulls to do that
+    """
     try:
         rect = detector(img)[0]
         sp = predictor(img, rect)
@@ -90,18 +95,26 @@ def dist(p1, p2):
 
 
 def remove_eyes(image, landmarks):
+    """
+    this function removes the eyes from the image
+    """
     image = image.copy()
     (x1, y1), (x2, y2) = landmarks[:2]
     mask = np.zeros_like(image[..., 0])
     line = cv2.line(mask, (x1, y1), (x2, y2), color=(1), thickness=2)
     w = dist((x1, y1), (x2, y2))
     dilation = int(w // 4)
+    # Dilation is a mathematical morphology operation that uses a structuring element for expanding the shapes in an image.
+    # and this function applies multidimensional binary dilation with the given structuring element.
     line = binary_dilation(line, iterations=dilation)
     image[line, :] = 0
     return image
 
 
 def remove_nose(image, landmarks):
+    """
+    this function removes the nose from the image
+    """
     image = image.copy()
     (x1, y1), (x2, y2) = landmarks[:2]
     x3, y3 = landmarks[2]
@@ -111,24 +124,34 @@ def remove_nose(image, landmarks):
     line = cv2.line(mask, (x3, y3), (x4, y4), color=(1), thickness=2)
     w = dist((x1, y1), (x2, y2))
     dilation = int(w // 4)
+    # Dilation is a mathematical morphology operation that uses a structuring element for expanding the shapes in an image.
+    # and this function applies multidimensional binary dilation with the given structuring element.
     line = binary_dilation(line, iterations=dilation)
     image[line, :] = 0
     return image
 
 
 def remove_mouth(image, landmarks):
+    """
+    this function removes the mouth from the image
+    """
     image = image.copy()
     (x1, y1), (x2, y2) = landmarks[-2:]
     mask = np.zeros_like(image[..., 0])
     line = cv2.line(mask, (x1, y1), (x2, y2), color=(1), thickness=2)
     w = dist((x1, y1), (x2, y2))
     dilation = int(w // 3)
+    # Dilation is a mathematical morphology operation that uses a structuring element for expanding the shapes in an image.
+    # and this function applies multidimensional binary dilation with the given structuring element.
     line = binary_dilation(line, iterations=dilation)
     image[line, :] = 0
     return image
 
 
 def remove_landmark(image, landmarks):
+    """
+    this function removes the landmarks from the image: including eyes, mouth and nose
+    """
     if random.random() > 0.5:
         image = remove_eyes(image, landmarks)
     elif random.random() > 0.5:
@@ -139,6 +162,9 @@ def remove_landmark(image, landmarks):
 
 
 def change_padding(image, part=5):
+    """
+    addS 30% of face crop size from each side 
+    """
     h, w = image.shape[:2]
     # original padding was done with 1/3 from each side, too much
     pad_h = int(((3 / 5) * h) / part)
@@ -182,14 +208,18 @@ def blackout_random(image, mask, label):
 def blend_original(img):
     img = img.copy()
     h, w = img.shape[:2]
+    # detect faces in image
     rect = detector(img)
+    # if there is no faces return the image
     if len(rect) == 0:
         return img
     else:
         rect = rect[0]
+    # predict the landmarks in the image
     sp = predictor(img, rect)
     landmarks = np.array([[p.x, p.y] for p in sp.parts()])
     outline = landmarks[[*range(17), *range(26, 16, -1)]]
+    # draw the outline of the landmarks on the image
     Y, X = skimage.draw.polygon(outline[:, 1], outline[:, 0])
     raw_mask = np.zeros(img.shape[:2], dtype=np.uint8)
     raw_mask[Y, X] = 1
@@ -203,7 +233,8 @@ def blend_original(img):
         w1 = random.randint(w - w // 2, w + w // 2)
     face = cv2.resize(face, (w1, h1), interpolation=random.choice([cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC]))
     face = cv2.resize(face, (w, h), interpolation=random.choice([cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC]))
-
+    # Erosion is a mathematical morphology operation that uses a structuring element for shrinking the shapes in an image.
+    # this function preforms multi-dimensional binary erosion with a given structuring element.
     raw_mask = binary_erosion(raw_mask, iterations=random.randint(4, 10))
     img[raw_mask, :] = face[raw_mask, :]
     if random.random() < 0.2:
@@ -256,9 +287,13 @@ class DeepFakeClassifierDataset(Dataset):
                 if self.mode == "train":
                     label = np.clip(label, self.label_smoothing, 1 - self.label_smoothing)
                 img_path = os.path.join(self.data_root, self.crops_dir, video, img_file)
+                # get the image from the directory
                 image = cv2.imread(img_path, cv2.IMREAD_COLOR)
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                # create a mask with the image
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
+                # gets the diffrences image (SSIM image from the preprocessing) 
+                # of the original image and fake image if it exists
                 diff_path = os.path.join(self.data_root, "diffs", video, img_file[:-4] + "_diff.png")
                 try:
                     msk = cv2.imread(diff_path, cv2.IMREAD_GRAYSCALE)
@@ -268,6 +303,12 @@ class DeepFakeClassifierDataset(Dataset):
                     print("not found mask", diff_path)
                     pass
                 if self.mode == "train" and self.hardcore and not self.rotation:
+                    # this part of the function gets the image and uses random() to choose
+                    # one of the following generalization approaches randomly:
+                    # 1. randomly removes one of the landmarks that MTCNN detected on the face randomly:
+                    #  it blacks out landmarks (eyes, nose or mouth)
+                    # 2. removes/blacks out half face horisontally or vertically and it uses dlib face convex hulls to do that
+                    # 3. blacks out half the image
                     landmark_path = os.path.join(self.data_root, "landmarks", ori_video, img_file[:-4] + ".npy")
                     if os.path.exists(landmark_path) and random.random() < 0.7:
                         landmarks = np.load(landmark_path)
@@ -303,7 +344,6 @@ class DeepFakeClassifierDataset(Dataset):
                     elif random.random() < dropout:
                         blackout_random(image, mask, label)
 
-                #
                 # os.makedirs("../images", exist_ok=True)
                 # cv2.imwrite(os.path.join("../images", video+ "_" + str(1 if label > 0.5 else 0) + "_"+img_file), image[...,::-1])
 

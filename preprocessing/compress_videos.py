@@ -65,7 +65,9 @@ def compress_video(video, root_dir):
 
 
 if __name__ == '__main__':
-    
+    """
+    this function applies the function compress_video on all the videos
+    """
     #ArgumentParser object will hold all the information necessary to parse the command line into Python data types
     parser = argparse.ArgumentParser(
         description="Extracts jpegs from video")

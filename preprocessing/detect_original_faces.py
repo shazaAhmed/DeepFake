@@ -13,8 +13,8 @@ from preprocessing.utils import get_original_video_paths
 
 
 def parse_args():
-     """
-    This function, which specifies 2 command-line options,
+    """
+    This function, which specifies 2 command-line options, parses the arguments with which the script is called
     """
     #ArgumentParser object will hold all the information necessary to parse the command line into Python data types
     parser = argparse.ArgumentParser(
@@ -32,6 +32,9 @@ def parse_args():
 
 
 def process_videos(videos, root_dir, detector_cls: Type[VideoFaceDetector]):
+    """
+    This script detects faces in real videos and store them as jsons in DATA_ROOT/bboxes directory
+    """
     detector = face_detector.__dict__[detector_cls](device="cuda:0")
     dataset = VideoDataset(videos)
     loader = DataLoader(dataset, shuffle=False, num_workers=cpu_count() - 2, batch_size=1, collate_fn=lambda x: x)

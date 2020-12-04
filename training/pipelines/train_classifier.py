@@ -134,6 +134,11 @@ def main():
 
     model = model.cuda()
     if args.distributed:
+        # Recursively traverse module and its children to replace all instances of
+        # batch norms with sync batch norm
+        # a Synchronized Batch Normalization (SyncBN) is a type of batch normalization used for multi-GPU training.
+        # Standard batch normalization only normalizes the data within each device (GPU). 
+        # SyncBN normalizes the input within the whole mini-batch.
         model = convert_syncbn_model(model)
     ohem = conf.get("ohem_samples", None)
     reduction = "mean"
@@ -173,6 +178,8 @@ def main():
     val_data_loader = DataLoader(data_val, batch_size=batch_size * 2, num_workers=args.workers, shuffle=False,
                                  pin_memory=False)
     os.makedirs(args.logdir, exist_ok=True)
+    # The SummaryWriter class creates an event file in a given directory and add summaries and events to it. 
+    # The class updates the file contents asynchronously.
     summary_writer = SummaryWriter(args.logdir + '/' + conf.get("prefix", args.prefix) + conf['encoder'] + "_" + str(args.fold))
     if args.resume:
         if os.path.isfile(args.resume):
@@ -199,8 +206,12 @@ def main():
                                           loss_scale='dynamic')
 
     snapshot_name = "{}{}_{}_{}".format(conf.get("prefix", args.prefix), conf['network'], conf['encoder'], args.fold)
-
+    # the difference between DistributedDataParallel and DataParallel
+    # DataParallel is single-process, multi-thread, and only works on a single machine,
+    # while DistributedDataParallel is multi-process and works for both single- and multi- machine training.
+    # DataParallel is usually slower than DistributedDataParallel
     if args.distributed:
+        #this enables multiprocess distributed data parallel training
         model = DistributedDataParallel(model, delay_allreduce=True)
     else:
         model = DataParallel(model).cuda()
@@ -210,6 +221,7 @@ def main():
         data_train.reset(epoch, args.seed)
         train_sampler = None
         if args.distributed:
+            # this restricts data loading to a subset of the dataset
             train_sampler = torch.utils.data.distributed.DistributedSampler(data_train)
             train_sampler.set_epoch(epoch)
         if epoch < args.freeze_epochs:

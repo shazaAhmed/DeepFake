@@ -12,6 +12,9 @@ class WeightedLosses(nn.Module):
         self.weights = weights
 
     def forward(self, *input: Any, **kwargs: Any):
+        """
+        this function returns the cumulative weighted loss
+        """
         cum_loss = 0
         for loss, w in zip(self.losses, self.weights):
             cum_loss += w * loss.forward(*input, **kwargs)
@@ -23,6 +26,8 @@ class BinaryCrossentropy(BCEWithLogitsLoss):
 
 
 class FocalLoss(BinaryFocalLoss):
+    # BinaryFocalLoss: This loss function generalizes binary cross-entropy by introducing a hyperparameter called the focusing parameter
+    # that allows hard-to-classify examples to be penalized more heavily relative to easy-to-classify examples.
     def __init__(self, alpha=None, gamma=3, ignore_index=None, reduction="mean", normalized=False,
                  reduced_threshold=None):
         super().__init__(alpha, gamma, ignore_index, reduction, normalized, reduced_threshold)

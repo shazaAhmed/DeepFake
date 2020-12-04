@@ -19,14 +19,19 @@ from tqdm import tqdm
 
 
 def extract_video(param, root_dir, crops_dir):
+    """
+    To extract image crops, the script uses bboxes produced by the script detect_original_faces.py to extract useful crops of the videos
+    """
+    # loading the bboxes files
     video, bboxes_path = param
     with open(bboxes_path, "r") as bbox_f:
         bboxes_dict = json.load(bbox_f)
-
+    #Class for video capturing from video files
     capture = cv2.VideoCapture(video)
     frames_num = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
     for i in range(frames_num):
+        # captures an image from the video and checks if one of the bboxes is in the image
         capture.grab()
         if i % 10 != 0:
             continue
@@ -38,6 +43,7 @@ def extract_video(param, root_dir, crops_dir):
         bboxes = bboxes_dict[str(i)]
         if bboxes is None:
             continue
+        # gets crops that are slightly larger than the bboxes that are on the image
         for bbox in bboxes:
             xmin, ymin, xmax, ymax = [int(b * 2) for b in bbox]
             w = xmax - xmin
@@ -49,6 +55,7 @@ def extract_video(param, root_dir, crops_dir):
             crops.append(crop)
         img_dir = os.path.join(root_dir, crops_dir, id)
         os.makedirs(img_dir, exist_ok=True)
+        # saves these crops in a directory
         for j, crop in enumerate(crops):
             cv2.imwrite(os.path.join(img_dir, "{}_{}.png".format(i, j)), crop)
 
@@ -72,11 +79,13 @@ def get_video_paths(root_dir):
 
 
 if __name__ == '__main__':
+    """
+    this scripts gets the videos and extracts crops from them and saves them
+    """
     parser = argparse.ArgumentParser(
         description="Extracts crops from video")
     parser.add_argument("--root-dir", help="root directory")
     parser.add_argument("--crops-dir", help="crops directory")
-
     args = parser.parse_args()
     os.makedirs(os.path.join(args.root_dir, args.crops_dir), exist_ok=True)
     params = get_video_paths(args.root_dir)
