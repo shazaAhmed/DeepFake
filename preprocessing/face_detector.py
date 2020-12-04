@@ -19,6 +19,7 @@ from torch.utils.data import Dataset
 
 
 class VideoFaceDetector(ABC):
+
     #Class declaring abstract methods 
 
     def __init__(self, **kwargs) -> None:
