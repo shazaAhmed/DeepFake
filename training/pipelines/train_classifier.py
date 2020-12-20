@@ -149,13 +149,17 @@ def main():
     for loss_name, weight in conf["losses"].items():
         loss_fn.append(losses.__dict__[loss_name](reduction=reduction).cuda())
         weights.append(weight)
+    # computes the cumulative weighted loss
     loss = WeightedLosses(loss_fn, weights)
     loss_functions = {"classifier_loss": loss}
+    # Creates optimizer and schedule from configuration
     optimizer, scheduler = create_optimizer(conf['optimizer'], model)
     bce_best = 100
     start_epoch = 0
     batch_size = conf['optimizer']['batch_size']
-
+    # this class is used to augment the exisiting train and val data in order to get
+    # the most out of the available images and to create a neural network that doesn't memorize
+    # the images that are fed into it
     data_train = DeepFakeClassifierDataset(mode="train",
                                            oversample_real=not args.no_oversample,
                                            fold=args.fold,
@@ -178,7 +182,7 @@ def main():
     val_data_loader = DataLoader(data_val, batch_size=batch_size * 2, num_workers=args.workers, shuffle=False,
                                  pin_memory=False)
     os.makedirs(args.logdir, exist_ok=True)
-    # The SummaryWriter class creates an event file in a given directory and add summaries and events to it. 
+    # The SummaryWriter class creates an event file in a given directory and add summaries and events to it.
     # The class updates the file contents asynchronously.
     summary_writer = SummaryWriter(args.logdir + '/' + conf.get("prefix", args.prefix) + conf['encoder'] + "_" + str(args.fold))
     if args.resume:
@@ -201,6 +205,9 @@ def main():
     current_epoch = start_epoch
 
     if conf['fp16']:
+        # Allow Amp to perform casts as required by the opt_level
+        # Commonly-used default modes are chosen by selecting an “optimization level” or opt_level;
+        # each opt_level establishes a set of properties that govern Amp’s implementation of pure or mixed precision training.
         model, optimizer = amp.initialize(model, optimizer,
                                           opt_level=args.opt_level,
                                           loss_scale='dynamic')
@@ -233,15 +240,15 @@ def main():
             model.module.encoder.train()
             for p in model.module.encoder.parameters():
                 p.requires_grad = True
-
+        # loads the training data
         train_data_loader = DataLoader(data_train, batch_size=batch_size, num_workers=args.workers,
                                        shuffle=train_sampler is None, sampler=train_sampler, pin_memory=False,
                                        drop_last=True)
-
+        # trains the epoch with the training data
         train_epoch(current_epoch, loss_functions, model, optimizer, scheduler, train_data_loader, summary_writer, conf,
                     args.local_rank, args.only_changed_frames)
         model = model.eval()
-
+        # saves the epochs' models
         if args.local_rank == 0:
             torch.save({
                 'epoch': current_epoch + 1,
@@ -263,12 +270,15 @@ def main():
 
 def evaluate_val(args, data_val, bce_best, model, snapshot_name, current_epoch, summary_writer):
     print("Test phase")
+    # model.eval() is a kind of switch for some specific layers/parts of the model that behave differently during training and inference (evaluating) time.
+    # For example, Dropouts Layers, BatchNorm Layers need to be turned off during model evaluation, and .eval() will do it 
     model = model.eval()
-
+    # get the Binary Crossentropy BCE, the probability and the targets
     bce, probs, targets = validate(model, data_loader=data_val)
     if args.local_rank == 0:
         summary_writer.add_scalar('val/bce', float(bce), global_step=current_epoch)
         if bce < bce_best:
+            # compares between the computed BCE for the current epoch and the best BCE for all the epochs
             print("Epoch {} improved from {} to {}".format(current_epoch, bce_best, bce))
             if args.output_dir is not None:
                 torch.save({
@@ -289,27 +299,37 @@ def evaluate_val(args, data_val, bce_best, model, snapshot_name, current_epoch, 
 
 
 def validate(net, data_loader, prefix=""):
+    """
+    this function returns the results of the validation
+    it returns the Binary Crossentropy, the probability and the targets
+    """
     probs = defaultdict(list)
     targets = defaultdict(list)
-
+    # this disables gradient calculation
+    # Disabling gradient calculation is useful for inference,
+    # when you are sure that you will not call Tensor.backward(). It will reduce memory consumption for computations
     with torch.no_grad():
         for sample in tqdm(data_loader):
             imgs = sample["image"].cuda()
             img_names = sample["img_name"]
             labels = sample["labels"].cuda().float()
+            # predicts using the model: variable net
             out = net(imgs)
             labels = labels.cpu().numpy()
+            # Returns a new tensor with the sigmoid of the variable out
             preds = torch.sigmoid(out).cpu().numpy()
+            # gets the results from the predictions
             for i in range(out.shape[0]):
                 video, img_id = img_names[i].split("/")
                 probs[video].append(preds[i].tolist())
                 targets[video].append(labels[i].tolist())
     data_x = []
     data_y = []
+    # iterate over predictions to compute the BCE using the log loss
+    # the log loss is the competition's scoring function
     for vid, score in probs.items():
         score = np.array(score)
         lbl = targets[vid]
-
         score = np.mean(score)
         lbl = np.mean(lbl)
         data_x.append(score)
@@ -333,10 +353,14 @@ def train_epoch(current_epoch, loss_functions, model, optimizer, scheduler, trai
     real_losses = AverageMeter()
     max_iters = conf["batches_per_epoch"]
     print("training epoch {}".format(current_epoch))
+    # tells the model that you are training the model. 
+    # So effectively layers like dropout, batchnorm etc. which behave different on the train and
+    # test procedures know what is going on and hence can behave accordingly.
     model.train()
     pbar = tqdm(enumerate(train_data_loader), total=max_iters, desc="Epoch {}".format(current_epoch), ncols=0)
     if conf["optimizer"]["schedule"]["mode"] == "epoch":
         scheduler.step(current_epoch)
+    # itterats over the training data sample
     for i, sample in pbar:
         imgs = sample["image"].cuda()
         labels = sample["labels"].cuda().float()
@@ -354,6 +378,8 @@ def train_epoch(current_epoch, loss_functions, model, optimizer, scheduler, trai
         real_idx = labels <= 0.5
 
         ohem = conf.get("ohem_samples", None)
+        # torch.sum returns the sum of all elements in the input tensor
+        # this part of the function computes the loss for the real and the fake videos
         if torch.sum(fake_idx * 1) > 0:
             fake_loss = loss_functions["classifier_loss"](out_labels[fake_idx], labels[fake_idx])
         if torch.sum(real_idx * 1) > 0:
@@ -366,18 +392,25 @@ def train_epoch(current_epoch, loss_functions, model, optimizer, scheduler, trai
         losses.update(loss.item(), imgs.size(0))
         fake_losses.update(0 if fake_loss == 0 else fake_loss.item(), imgs.size(0))
         real_losses.update(0 if real_loss == 0 else real_loss.item(), imgs.size(0))
-
+        # sets the gradients to zero before starting to do backpropragation
         optimizer.zero_grad()
+        # this specifies additional stats to display at the end of the bar
         pbar.set_postfix({"lr": float(scheduler.get_lr()[-1]), "epoch": current_epoch, "loss": losses.avg,
                           "fake_loss": fake_losses.avg, "real_loss": real_losses.avg})
 
+        # # starts the backpropagation for both types of models
         if conf['fp16']:
             with amp.scale_loss(loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
         else:
             loss.backward()
+        # torch.nn.utils.clip_grad_norm_ : Clips gradient norm of an iterable of parameters.
+        # The norm is computed over all gradients together, as if they were concatenated into a single vector. Gradients are modified in-place.
+        # amp.master_params: generator expression that iterates over the params owned by optimizer
         torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 1)
+        # optimizer.step performs a parameter update based on the current gradient (stored in .grad attribute of a parameter) and the update rule.
         optimizer.step()
+        # wait for all kernels in all streams on a CUDA device to complete.
         torch.cuda.synchronize()
         if conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
             scheduler.step(i + current_epoch * max_iters)

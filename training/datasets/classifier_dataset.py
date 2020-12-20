@@ -246,6 +246,11 @@ def blend_original(img):
 
 
 class DeepFakeClassifierDataset(Dataset):
+    # this class executes the author's approach to generalize the train set
+    # this process is called the augmentation of a data set
+    # Image data augmentation is a technique that can be used to artificially expand the size of a training dataset by creating modified versions of images in the dataset.
+    # Training deep learning neural network models on more data can result in more skillful models,
+    # and the augmentation techniques can create variations of the images that can improve the ability of the fit models to generalize what they have learned to new images.
 
     def __init__(self,
                  data_path="/mnt/sota/datasets/deepfake",
